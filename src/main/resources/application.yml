@@ -1,0 +1,35 @@
+mybatis-plus:
+  global-config:
+    db-config:
+      id-type: auto
+
+spring:
+  application:
+    name: labserver
+  datasource:
+    url: jdbc:mysql://localhost:3306/labserver?useSSL=false
+    username: root
+    password: wxl2080ti
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+    jackson:
+      date-format: yyyy-MM-dd HH:mm:ss
+      time-zone: Asia/Shanghai
+
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: wxl2080ti
+      timeout: 10000
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1
+          max-idle: 8
+          min-idle: 0
+
+server:
+  port: 8403
+
+dockerRoot: "/home/server-admin/workspace/docker-compose/wxl2080Ti/"

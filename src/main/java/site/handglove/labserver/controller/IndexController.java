@@ -18,7 +18,6 @@ import site.handglove.labserver.model.LoginVo;
 import site.handglove.labserver.model.RouterVo;
 import site.handglove.labserver.model.User;
 import site.handglove.labserver.result.Result;
-import site.handglove.labserver.security.custom.CustomBcryptPasswordEncoder;
 import site.handglove.labserver.security.custom.LoginUserHelper;
 import site.handglove.labserver.service.UserMenuService;
 import site.handglove.labserver.service.UserService;
@@ -34,24 +33,7 @@ public class IndexController {
     private UserMenuService userMenuService;
 
     @PostMapping("/login")
-    public Result<?> login(@RequestBody LoginVo loginVo) {
-        Map<String, Object> map = new HashMap<>();
-        String username = loginVo.getUsername();
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        User user = userService.getOne(queryWrapper.eq(User::getUsername, username));
-
-        if (user == null) {
-            return Result.FAIL("用户不存在");
-        }
-
-        if (!new CustomBcryptPasswordEncoder().matches(loginVo.getPassword(), user.getPasswordHash())) {
-            return Result.FAIL("密码错误");
-        }
-
-        String token = JWTHelper.createToken(username);
-        map.put("token", token);
-
-        return Result.OK(map);
+    public void login(@RequestBody LoginVo loginVo) {
     }
 
     @GetMapping("/info")

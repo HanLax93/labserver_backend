@@ -52,7 +52,7 @@ public class TokenLoginFilter extends UsernamePasswordAuthenticationFilter {
         }
     }
     // 认证成功调用的方法
-    @SuppressWarnings("null")
+    // @SuppressWarnings("null")
     @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
             Authentication authResult) throws IOException, ServletException {

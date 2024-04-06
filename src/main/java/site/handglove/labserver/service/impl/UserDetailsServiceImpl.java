@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import java.util.ArrayList;
 import java.util.List;
 
+import site.handglove.labserver.exception.CustomAuthenticationException;
 import site.handglove.labserver.model.User;
 import site.handglove.labserver.security.custom.CustomUser;
 import site.handglove.labserver.security.custom.UserDetailsService;
@@ -22,13 +23,17 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private UserService userService;
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String username) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUsername, username);
         User user = userService.getOne(queryWrapper);
 
         if (user == null) {
             throw new UsernameNotFoundException("用户不存在");
+        }
+
+        if (user.getIsDeleted() == 1) {
+            throw new CustomAuthenticationException("用户已禁用，请更换用户名重新注册");
         }
 
         List<SimpleGrantedAuthority> permission = new ArrayList<>();

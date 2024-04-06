@@ -32,6 +32,9 @@ public class User {
     @TableField("permission")
     private Integer permission;
 
+    @TableField("is_deleted")
+    private Integer isDeleted;
+
     @TableField("created_at")
     private OffsetDateTime createdAt;
 

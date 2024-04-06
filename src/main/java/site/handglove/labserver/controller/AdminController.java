@@ -23,11 +23,11 @@ import site.handglove.labserver.model.ContainerTask;
 import site.handglove.labserver.model.User;
 import site.handglove.labserver.model.UserQueryVo;
 import site.handglove.labserver.result.Result;
+import site.handglove.labserver.service.ContainerService;
 import site.handglove.labserver.service.StuService;
 import site.handglove.labserver.service.TaskService;
 import site.handglove.labserver.service.UserService;
 import site.handglove.labserver.utils.Helper;
-
 
 @CrossOrigin
 @RestController()
@@ -42,6 +42,9 @@ public class AdminController {
     @Autowired
     private TaskService taskService;
 
+    @Autowired
+    private ContainerService containerService;
+
     @PreAuthorize("hasAuthority('admin')")
     @GetMapping("allContainers")
     public Result<?> containers() {
@@ -52,6 +55,12 @@ public class AdminController {
     @PreAuthorize("hasAuthority('admin')")
     @PostMapping("approve/{name}")
     public Result<?> createContainer(@PathVariable String name) {
+        LambdaQueryWrapper<Container> checkWrapper = new LambdaQueryWrapper<>();
+        checkWrapper.eq(Container::getName, name);
+        var checkContainer = containerService.getOne(checkWrapper);
+        if (checkContainer != null) {
+            return Result.FAIL().message("容器已存在");
+        }
         var container = stuService.createContainer(name);
         if (container.getRunning() == 1 && container.getSshStatus() == 1) {
             LambdaQueryWrapper<ContainerTask> queryWrapper = new LambdaQueryWrapper<>();
@@ -61,36 +70,67 @@ public class AdminController {
             taskService.updateById(task);
             return Result.OK().message("操作成功");
         }
-        return Result.FAIL();
+        return Result.FAIL().message("操作失败");
+    }
+
+    @PreAuthorize("hasAuthority('admin')")
+    @PostMapping("decline/{name}")
+    public Result<?> decline(@PathVariable String name) {
+        LambdaQueryWrapper<ContainerTask> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ContainerTask::getName, name);
+        ContainerTask task = taskService.getOne(queryWrapper);
+        task.setIsProcessed(2);
+        var isOK = taskService.updateById(task);
+
+        LambdaQueryWrapper<User> queryWrapper2 = new LambdaQueryWrapper<>();
+        queryWrapper2.eq(User::getUsername, name);
+        User user = userService.getOne(queryWrapper2);
+        user.setIsDeleted(1);
+        userService.updateById(user);
+
+        return isOK ? Result.OK().message("已拒绝") : Result.FAIL().message("操作失败");
+    }
+
+    @PreAuthorize("hasAuthority('admin')")
+    @PostMapping("remove/{name}")
+    public Result<?> removeUser(@PathVariable String name) {
+        LambdaQueryWrapper<User> userWrapper = new LambdaQueryWrapper<>();
+        userWrapper.eq(User::getUsername, name);
+        User user = userService.getOne(userWrapper);
+        user.setIsDeleted(1);
+        var isOK = userService.updateById(user);
+        return isOK ? Result.OK().message("删除成功") : Result.FAIL();
     }
 
     @PreAuthorize("hasAuthority('admin')")
     @GetMapping("{page}/{limit}")
     public Result<?> allUsers(@PathVariable Long page, @PathVariable Long limit, UserQueryVo userQueryVo) {
-        //创建page对象
-        Page<User> pageParam = new Page<>(page,limit);
+        // 创建page对象
+        Page<User> pageParam = new Page<>(page, limit);
 
-        //封装条件，判断条件值不为空
+        // 封装条件，判断条件值不为空
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        //获取条件值
+        // LambdaQueryChainWrapper<User> wrapper = new LambdaQueryChainWrapper<>();
+        wrapper.eq(User::getIsDeleted, 0);
+        // 获取条件值
         String username = userQueryVo.getKeyword();
         String createTimeBegin = userQueryVo.getCreateTimeBegin();
         String createTimeEnd = userQueryVo.getCreateTimeEnd();
-        //判断条件值不为空
-        //like 模糊查询
-        if(!StringUtils.isEmpty(username)) {
-            wrapper.like(User::getUsername,username);
+        // 判断条件值不为空
+        // like 模糊查询
+        if (!StringUtils.isEmpty(username)) {
+            wrapper.like(User::getUsername, username);
         }
-        //ge 大于等于
-        if(!StringUtils.isEmpty(createTimeBegin)) {
-            wrapper.ge(User::getCreatedAt,createTimeBegin);
+        // ge 大于等于
+        if (!StringUtils.isEmpty(createTimeBegin)) {
+            wrapper.ge(User::getCreatedAt, createTimeBegin);
         }
-        //le 小于等于
-        if(!StringUtils.isEmpty(createTimeEnd)) {
-            wrapper.le(User::getCreatedAt,createTimeEnd);
+        // le 小于等于
+        if (!StringUtils.isEmpty(createTimeEnd)) {
+            wrapper.le(User::getCreatedAt, createTimeEnd);
         }
 
-        //调用mp的方法实现条件分页查询
+        // 调用mp的方法实现条件分页查询
         IPage<User> pageModel = userService.page(pageParam, wrapper);
         return Result.OK(pageModel);
     }
@@ -123,7 +163,7 @@ public class AdminController {
                 return Result.OK().message("启动成功");
             }
         }
-            return Result.FAIL().message("启动失败");
+        return Result.FAIL().message("启动失败");
     }
 
     @PreAuthorize("hasAuthority('admin')")
@@ -137,7 +177,7 @@ public class AdminController {
                 return Result.OK().message("启动成功");
             }
         }
-            return Result.FAIL().message("启动失败");
+        return Result.FAIL().message("启动失败");
     }
 
     @SuppressWarnings("null")

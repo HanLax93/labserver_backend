@@ -6,19 +6,19 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import site.handglove.labserver.security.custom.CustomAuthenticationProvider;
 import site.handglove.labserver.security.custom.CustomBcryptPasswordEncoder;
+import site.handglove.labserver.security.custom.UserDetailsService;
 import site.handglove.labserver.security.filter.TokenAuthenticationFilter;
 import site.handglove.labserver.security.filter.TokenLoginFilter;
 
@@ -39,7 +39,7 @@ public class WebSecurityConfig {
     @Bean
     protected AuthenticationManager authenticationManager(
         UserDetailsService userDetailsService, CustomBcryptPasswordEncoder customBcryptPasswordEncoder) throws Exception {
-            DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+            var authenticationProvider = new CustomAuthenticationProvider();
             authenticationProvider.setUserDetailsService(userDetailsService);
             authenticationProvider.setPasswordEncoder(customBcryptPasswordEncoder);
 

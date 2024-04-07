@@ -43,12 +43,12 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter{
         }
 
         UsernamePasswordAuthenticationToken authentication = getAuthentication(request);
-        if (authentication != null) {
+        if (authentication != null && authentication.getAuthorities().size() != 0) {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             filterChain.doFilter(request, response);
         }
         else {
-            ResponseUtil.out(response, Result.FAIL().message("login expired"));
+            ResponseUtil.out(response, Result.FAIL().message("登录过期，请退出重新登录"));
         }
     }
     

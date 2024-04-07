@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.dockerjava.api.exception.DockerException;
 
 import site.handglove.labserver.mapper.StuMapper;
 import site.handglove.labserver.model.Container;
@@ -23,14 +24,17 @@ public class StuServiceImpl extends ServiceImpl<StuMapper, Stu> implements StuSe
 
     @Override
     public List<Container> getAllContainers() {
-        List<String> allContainersString = Helper.containerInfo(null);
-
-        List<Container> allContainers = allContainersString.stream().map(item -> {
-            var tmp = item.split("\t");
-            return Helper.containerParser(tmp);
-        }).collect(Collectors.toList());
-
-        return allContainers;
+        LambdaQueryWrapper<Container> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.select(Container::getName);
+        List<String> names = containerService.listObjs(queryWrapper, obj -> (String) obj);
+        try {
+            List<Container> allContainers = names.stream().map(item -> {
+                return Helper.containerInfo(null, item);
+            }).collect(Collectors.toList());
+            return allContainers;
+        } catch (DockerException ex) {
+            throw ex;
+        }
     }
 
     @Override
@@ -44,15 +48,20 @@ public class StuServiceImpl extends ServiceImpl<StuMapper, Stu> implements StuSe
         if (stuIndex == 8) {
             ++stuIndex;
         }
-        boolean success = Helper.addService(name, stuIndex);
-        if (success) {
-            var containerInfo = Helper.containerInfo(name);
-            var tmp = containerInfo.get(0).split("\\t");
-            var newContainer =  Helper.containerParser(tmp);
-            var stu = new Stu(name, stuIndex);
-            this.save(stu);
-            containerService.save(newContainer);
-            return newContainer;
+        
+        try {
+            boolean success = Helper.createContainer(name, stuIndex);
+            if (success) {
+                var newContainer =  Helper.containerInfo(null, name);
+                var stu = new Stu(name, stuIndex);
+                this.save(stu);
+                containerService.save(newContainer);
+                return newContainer;
+            }
+        } catch (DockerException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
         return null;
     }

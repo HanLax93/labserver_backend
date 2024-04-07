@@ -2,7 +2,9 @@ package site.handglove.labserver.model;
 
 import java.time.OffsetDateTime;
 
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.AllArgsConstructor;
@@ -14,7 +16,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @TableName("users")
 public class User {
-    @TableField("id")
+    @TableId(type = IdType.AUTO)
     private Integer id;
 
     @TableField("username")

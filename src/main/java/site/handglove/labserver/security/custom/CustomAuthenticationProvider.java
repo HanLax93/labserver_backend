@@ -9,7 +9,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.core.userdetails.UserDetailsChecker;
 import org.springframework.util.Assert;
 
-import site.handglove.labserver.exception.CustomAuthenticationException;
+import site.handglove.labserver.exception.CustomException;
 
 public class CustomAuthenticationProvider extends DaoAuthenticationProvider {
 
@@ -47,13 +47,13 @@ public class CustomAuthenticationProvider extends DaoAuthenticationProvider {
         @Override
         public void check(UserDetails user) {
             if (!user.isAccountNonLocked()) {
-                throw new CustomAuthenticationException("账户已锁定");
+                throw new CustomException("账户已锁定");
             }
             if (!user.isEnabled()) {
-                throw new CustomAuthenticationException("账户已启用");
+                throw new CustomException("账户已启用");
             }
             if (!user.isAccountNonExpired()) {
-                throw new CustomAuthenticationException("账户已过期");
+                throw new CustomException("账户已过期");
             }
         }
     }
@@ -63,7 +63,7 @@ public class CustomAuthenticationProvider extends DaoAuthenticationProvider {
         @Override
         public void check(UserDetails user) {
             if (!user.isCredentialsNonExpired()) {
-                throw new CustomAuthenticationException("账户凭证已过期");
+                throw new CustomException("账户凭证已过期");
             }
         }
     }

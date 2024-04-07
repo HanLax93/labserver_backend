@@ -1,6 +1,5 @@
 package site.handglove.labserver.controller;
 
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +14,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.dockerjava.api.exception.DockerException;
 
+import site.handglove.labserver.exception.CustomException;
 import site.handglove.labserver.model.ApplyVo;
 import site.handglove.labserver.model.Container;
 import site.handglove.labserver.model.ContainerTask;
@@ -63,7 +64,8 @@ public class UserController {
         var containerTask = new ContainerTask();
         containerTask.setName(applyVo.getUsername());
         boolean submitted = taskService.save(containerTask);
-        userService.save(new User(username, new CustomBcryptPasswordEncoder().encode("000000"), applyVo.getName(), applyVo.getEntryYear()));
+        userService.save(new User(username, new CustomBcryptPasswordEncoder().encode("000000"), applyVo.getName(),
+                applyVo.getEntryYear()));
         return submitted ? Result.OK().message("申请成功") : Result.FAIL().message("未知错误");
     }
 
@@ -71,31 +73,31 @@ public class UserController {
     @GetMapping("run")
     public Result<?> run() {
         String name = LoginUserHelper.getUsername();
-        Helper.runContainer(name);
-        Helper.runContainerSSH(name);
-        List<String> containerInfo = Helper.containerInfo(name);
-        if (containerInfo.size() != 0) {
-            Container container = Helper.containerParser(containerInfo.get(0).split("\\t"));
-            if (container.getRunning() == 1 && container.getSshStatus() == 1) {
-                return Result.OK().message("启动成功");
+        try {
+            boolean ret1 = Helper.runContainer(name, null);
+            boolean ret2 = Helper.runContainerSSH(name, null);
+            if (ret1 && ret2) {
+                return Result.OK().message("开启成功");
             }
+            return Result.FAIL().message("开启失败");
+        } catch (Exception ex) {
+            return Result.FAIL().message(ex.getMessage());
         }
-            return Result.FAIL().message("启动失败");
     }
 
     @PreAuthorize("hasAuthority('user')")
     @GetMapping("runSSH/{name}")
     public Result<?> runSSH() {
         var name = LoginUserHelper.getUsername();
-        Helper.runContainerSSH(name);
-        List<String> containerInfo = Helper.containerInfo(name);
-        if (containerInfo.size() != 0) {
-            Container container = Helper.containerParser(containerInfo.get(0).split("\\t"));
-            if (container.getRunning() == 1 && container.getSshStatus() == 1) {
-                return Result.OK().message("启动成功");
+        try {
+            boolean ret = Helper.runContainerSSH(name, null);
+            if (ret) {
+                return Result.OK().message("开启成功");
             }
+            return Result.FAIL().message("开启失败");
+        } catch (Exception ex) {
+            return Result.FAIL().message(ex.getMessage());
         }
-            return Result.FAIL().message("启动失败");
     }
 
     @PreAuthorize("hasAuthority('user')")
@@ -104,7 +106,8 @@ public class UserController {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUsername, LoginUserHelper.getUsername());
         User realUser = userService.getOne(queryWrapper);
-        if (realUser.getId().intValue() == user.getId() && realUser.getUsername().equals(user.getUsername()) && realUser.getPermission().intValue() == user.getPermission()) {
+        if (realUser.getId().intValue() == user.getId() && realUser.getUsername().equals(user.getUsername())
+                && realUser.getPermission().intValue() == user.getPermission()) {
             boolean isOk = userService.updateById(user);
             return isOk ? Result.OK().message("修改成功") : Result.FAIL();
         } else {
@@ -125,16 +128,12 @@ public class UserController {
     @PreAuthorize("hasAuthority('user')")
     @GetMapping("container")
     public Result<?> container() {
-        List<String> containerInfo = Helper.containerInfo(LoginUserHelper.getUsername());
-        if (containerInfo != null && containerInfo.size() != 0) {
-            Container container = Helper.containerParser(containerInfo.get(0).split("\t"));
-            return Result.OK(new ArrayList<Container>(){
-                {
-                    add(container);
-                }
-            });
+        try {
+            var container = Helper.containerInfo(null, LoginUserHelper.getUsername());
+            return Result.OK(new ArrayList<Container>(){{add(container);}});
+        } catch (DockerException ex) {
+            return Result.FAIL().message(CustomException.parseDockerExceptionMessage(ex));
         }
-        return Result.FAIL().message("无容器信息");
     }
 
     @PreAuthorize("hasAuthority('user')")
@@ -143,6 +142,10 @@ public class UserController {
         LambdaQueryWrapper<ContainerTask> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(ContainerTask::getName, LoginUserHelper.getUsername());
         ContainerTask task = taskService.getOne(queryWrapper);
-        return task != null ? Result.OK(new ArrayList<>(){{ add(task); }}) : Result.FAIL().message("未查询到任务");
+        return task != null ? Result.OK(new ArrayList<>() {
+            {
+                add(task);
+            }
+        }) : Result.FAIL().message("未查询到任务");
     }
 }

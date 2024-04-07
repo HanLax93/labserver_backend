@@ -3,6 +3,7 @@ package site.handglove.labserver.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,9 +18,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.github.dockerjava.api.exception.DockerException;
 
+import site.handglove.labserver.exception.CustomException;
 import site.handglove.labserver.model.Container;
 import site.handglove.labserver.model.ContainerTask;
+import site.handglove.labserver.model.Stu;
 import site.handglove.labserver.model.User;
 import site.handglove.labserver.model.UserQueryVo;
 import site.handglove.labserver.result.Result;
@@ -45,11 +49,21 @@ public class AdminController {
     @Autowired
     private ContainerService containerService;
 
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     @PreAuthorize("hasAuthority('admin')")
     @GetMapping("allContainers")
     public Result<?> containers() {
-        List<Container> allContainers = stuService.getAllContainers();
-        return Result.OK(allContainers);
+        try {
+            List<Container> allContainers = stuService.getAllContainers();
+            return Result.OK(allContainers);
+        } catch (DockerException ex) {
+            return Result.FAIL().message(CustomException.parseDockerExceptionMessage(ex));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return Result.FAIL().message("请查看日志");
+        }
     }
 
     @PreAuthorize("hasAuthority('admin')")
@@ -61,16 +75,26 @@ public class AdminController {
         if (checkContainer != null) {
             return Result.FAIL().message("容器已存在");
         }
-        var container = stuService.createContainer(name);
-        if (container.getRunning() == 1 && container.getSshStatus() == 1) {
-            LambdaQueryWrapper<ContainerTask> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(ContainerTask::getName, name);
-            ContainerTask task = taskService.getOne(queryWrapper);
-            task.setIsProcessed(1);
-            taskService.updateById(task);
-            return Result.OK().message("操作成功");
+
+        try {
+            var container = stuService.createContainer(name);
+            if (container.getRunning() == 1 && container.getSshStatus() == 1) {
+                LambdaQueryWrapper<ContainerTask> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.eq(ContainerTask::getName, name);
+                ContainerTask task = taskService.getOne(queryWrapper);
+                task.setIsProcessed(1);
+                taskService.updateById(task);
+                containerService.save(container);
+                stuService.save(new Stu(name, container.getStuIndex()));
+                return Result.OK().message("操作成功");
+            }
+            return Result.FAIL().message("操作失败");
+        } catch (DockerException ex) {
+            return Result.FAIL().message(CustomException.parseDockerExceptionMessage(ex));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return Result.FAIL().message("操作可能成功，请查看日志及服务器");
         }
-        return Result.FAIL().message("操作失败");
     }
 
     @PreAuthorize("hasAuthority('admin')")
@@ -87,6 +111,8 @@ public class AdminController {
         User user = userService.getOne(queryWrapper2);
         user.setIsDeleted(1);
         userService.updateById(user);
+        // redisTemplate.opsForValue().set(user.getUsername(), " ");
+        redisTemplate.delete(user.getUsername());
 
         return isOK ? Result.OK().message("已拒绝") : Result.FAIL().message("操作失败");
     }
@@ -99,6 +125,8 @@ public class AdminController {
         User user = userService.getOne(userWrapper);
         user.setIsDeleted(1);
         var isOK = userService.updateById(user);
+        redisTemplate.delete(user.getUsername());
+        // redisTemplate.opsForValue().set(user.getUsername(), " ");
         return isOK ? Result.OK().message("删除成功") : Result.FAIL();
     }
 
@@ -154,30 +182,36 @@ public class AdminController {
     @PreAuthorize("hasAuthority('admin')")
     @GetMapping("run/{name}")
     public Result<?> run(@PathVariable String name) {
-        Helper.runContainer(name);
-        Helper.runContainerSSH(name);
-        List<String> containerInfo = Helper.containerInfo(name);
-        if (containerInfo.size() != 0) {
-            Container container = Helper.containerParser(containerInfo.get(0).split("\\t"));
-            if (container.getRunning() == 1 && container.getSshStatus() == 1) {
-                return Result.OK().message("启动成功");
+        try {
+            boolean ret1 = Helper.runContainer(name, null);
+            boolean ret2 = Helper.runContainerSSH(name, null);
+            if (ret1 && ret2) {
+                return Result.OK().message("开启成功");
             }
+            return Result.FAIL().message("开启失败");
+        } catch (DockerException ex) {
+            return Result.FAIL().message(CustomException.parseDockerExceptionMessage(ex));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return Result.FAIL().message("请查看日志");
         }
-        return Result.FAIL().message("启动失败");
     }
 
     @PreAuthorize("hasAuthority('admin')")
     @GetMapping("runSSH/{name}")
     public Result<?> runSSH(@PathVariable String name) {
-        Helper.runContainerSSH(name);
-        List<String> containerInfo = Helper.containerInfo(name);
-        if (containerInfo.size() != 0) {
-            Container container = Helper.containerParser(containerInfo.get(0).split("\\t"));
-            if (container.getRunning() == 1 && container.getSshStatus() == 1) {
-                return Result.OK().message("启动成功");
+        try {
+            boolean ret = Helper.runContainerSSH(name, null);
+            if (ret) {
+                return Result.OK().message("开启成功");
             }
+            return Result.FAIL().message("开启失败");
+        } catch (DockerException ex) {
+            return Result.FAIL().message(CustomException.parseDockerExceptionMessage(ex));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return Result.FAIL().message("请查看日志");
         }
-        return Result.FAIL().message("启动失败");
     }
 
     @SuppressWarnings("null")

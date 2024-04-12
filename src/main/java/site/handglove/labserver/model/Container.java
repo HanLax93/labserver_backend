@@ -1,6 +1,7 @@
 package site.handglove.labserver.model;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -27,6 +28,9 @@ public class Container {
 
     @TableField("port")
     private int port;
+
+    @TableField(exist = false)
+    private List<Integer> ports;
 
     @TableField(exist = false)
     private int running;

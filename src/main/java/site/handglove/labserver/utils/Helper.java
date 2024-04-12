@@ -97,7 +97,7 @@ public class Helper {
         return container;
     }
 
-    public static Container containerParser(InspectContainerResponse containerResponse) {
+    public static Container containerParser(InspectContainerResponse containerResponse) throws Exception {
         Collection<Binding[]> values = containerResponse.getHostConfig().getPortBindings().getBindings().values();
         List<String> ports = values.stream().map(item -> item[0].getHostPortSpec()).collect(Collectors.toList());
         ports.sort((a, b) -> Integer.valueOf(a) - Integer.valueOf(b));
@@ -105,8 +105,10 @@ public class Helper {
         container.setDockerID(containerResponse.getId().substring(0, 12));
         container.setCreateTime(dateConverter(containerResponse.getCreated()));
         container.setRunning(containerResponse.getState().getRunning() ? 1 : 0);
+        List<Integer> portsInt = ports.stream().map(item -> Integer.valueOf(item)).collect(Collectors.toList());
         Integer port = Integer.valueOf(ports.get(0));
         container.setPort(port);
+        container.setPorts(portsInt);
         container.setStuIndex(port / 1000);
         container.setName(containerResponse.getName().substring(1));
         try {
@@ -117,7 +119,7 @@ public class Helper {
         return container;
     }
 
-    public static boolean createContainer(String name, Integer stuIndex) {
+    public static boolean createContainer(String name, Integer stuIndex) throws Exception {
         DockerClient dockerClient = getDockerClient();
         // make folders and unzip apt dependencies
         String stuPath = dockerRoot + "stus/data/stu" + stuIndex;
@@ -187,6 +189,7 @@ public class Helper {
             ShellCommandRunner.run("tar xzf " + scriptsPath + " -C " + aptPath + " --strip-components 1");
             ShellCommandRunner.run("sudo docker exec -uroot " + name + " chown -R stu:sudo /home/stu");
             runContainerSSH(name, dockerClient);
+            dockerClient.close();
             return true;
         } catch (Exception e) {
             try {
@@ -199,16 +202,22 @@ public class Helper {
             }
             e.printStackTrace();
         }
+        dockerClient.close();
         return false;
     }
 
     @SuppressWarnings("null")
-    public static Container containerInfo(@Nullable DockerClient dockerClient, String name) {
+    public static Container containerInfo(@Nullable DockerClient dockerClient, String name) throws Exception {
+        boolean ownDockerClient = false;
         try {
             if (dockerClient == null) {
+                ownDockerClient = true;
                 dockerClient = getDockerClient();
             }
             InspectContainerResponse containerResponse = dockerClient.inspectContainerCmd(name).exec();
+            if (ownDockerClient) {
+                dockerClient.close();
+            }
             return containerParser(containerResponse);
         } catch (DockerException e) {
             throw e;
@@ -273,14 +282,17 @@ public class Helper {
     }
 
     @SuppressWarnings("null")
-    public static boolean runContainer(String name, @Nullable DockerClient dockerClient) {
+    public static boolean runContainer(String name, @Nullable DockerClient dockerClient) throws Exception {
+        boolean ownDockerClient = false;
         try {
             if (dockerClient == null) {
+                ownDockerClient = true;
                 dockerClient = getDockerClient();
             }
             dockerClient.startContainerCmd(name).exec();
             InspectContainerResponse containerResponse = dockerClient.inspectContainerCmd(name).exec();
             boolean isRunning = containerResponse.getState().getRunning();
+            if (ownDockerClient) dockerClient.close();
             return isRunning;
         } catch (DockerException e) {
             throw e;
@@ -288,9 +300,11 @@ public class Helper {
     }
 
     @SuppressWarnings("null")
-    public static boolean runContainerSSH(String name, @Nullable DockerClient dockerClient) {
+    public static boolean runContainerSSH(String name, @Nullable DockerClient dockerClient) throws Exception {
+        boolean ownDockerClient = false;
         ShellCommandRunner.run("sudo docker exec -uroot " + name + " service ssh start");
         if (dockerClient == null) {
+            ownDockerClient = true;
             dockerClient = getDockerClient();
         }
 
@@ -316,11 +330,10 @@ public class Helper {
 
             // 检查输出中是否包含'sshd'，以此判断SSH服务是否在运行
             boolean isSshRunning = !output.toString().contains("not");
+            if (ownDockerClient) dockerClient.close();
             return isSshRunning;
         } catch (DockerException ex) {
             throw ex;
-        } catch (InterruptedException ex) {
-            throw new CustomException("未知错误");
         }
     }
 
@@ -347,10 +360,25 @@ public class Helper {
 
             // 检查输出中是否包含'sshd'，以此判断SSH服务是否在运行
             boolean isSshRunning = !output.toString().contains("not");
+            dockerClient.close();
             return isSshRunning;
         } catch (DockerException ex) {
             throw ex;
         }
+    }
+
+    public static boolean removeContainer(Integer stuIndex, String name) throws Exception {
+        var dockerClient = getDockerClient();
+        var dataRoot = dockerRoot + "stus/data/stu" + stuIndex;
+        try {
+            dockerClient.stopContainerCmd(name).exec();
+            dockerClient.removeContainerCmd(name).exec();
+            dockerClient.close();
+            ShellCommandRunner.run("mv " + dataRoot + " " + dataRoot  + "_" + name + ".del");
+        } catch (DockerException ex) {
+            throw ex;
+        }
+        return true;
     }
 
     public static int[] stringToIntegerArray(String input) {

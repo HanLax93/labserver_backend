@@ -71,7 +71,7 @@ public class TokenLoginFilter extends UsernamePasswordAuthenticationFilter {
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException failed) throws IOException, ServletException {
-        if(failed.getCause() instanceof RuntimeException) {
+        if(failed instanceof RuntimeException) {
             ResponseUtil.out(response, Result.FAIL().message(failed.getMessage()));
         } else {
             ResponseUtil.out(response, Result.FAIL().message("登录失败"));

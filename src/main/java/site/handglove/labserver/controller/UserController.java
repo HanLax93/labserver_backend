@@ -133,6 +133,8 @@ public class UserController {
             return Result.OK(new ArrayList<Container>(){{add(container);}});
         } catch (DockerException ex) {
             return Result.FAIL().message(CustomException.parseDockerExceptionMessage(ex));
+        } catch (Exception ex) {
+            return Result.FAIL().message("位置错误");
         }
     }
 

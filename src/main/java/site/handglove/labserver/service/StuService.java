@@ -8,7 +8,7 @@ import site.handglove.labserver.model.Container;
 import site.handglove.labserver.model.Stu;
 
 public interface StuService extends IService<Stu> {
-    public List<Container> getAllContainers();
+    public List<Container> getAllContainers() throws Exception;
 
     public Container createContainer(String name);
 }

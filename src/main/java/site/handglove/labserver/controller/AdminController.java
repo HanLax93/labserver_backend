@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -84,8 +85,6 @@ public class AdminController {
                 ContainerTask task = taskService.getOne(queryWrapper);
                 task.setIsProcessed(1);
                 taskService.updateById(task);
-                containerService.save(container);
-                stuService.save(new Stu(name, container.getStuIndex()));
                 return Result.OK().message("操作成功");
             }
             return Result.FAIL().message("操作失败");
@@ -93,7 +92,7 @@ public class AdminController {
             return Result.FAIL().message(CustomException.parseDockerExceptionMessage(ex));
         } catch (Exception ex) {
             ex.printStackTrace();
-            return Result.FAIL().message("操作可能成功，请查看日志及服务器");
+            return Result.FAIL().message("操作失败，请查看日志");
         }
     }
 
@@ -111,7 +110,6 @@ public class AdminController {
         User user = userService.getOne(queryWrapper2);
         user.setIsDeleted(1);
         userService.updateById(user);
-        // redisTemplate.opsForValue().set(user.getUsername(), " ");
         redisTemplate.delete(user.getUsername());
 
         return isOK ? Result.OK().message("已拒绝") : Result.FAIL().message("操作失败");
@@ -123,10 +121,12 @@ public class AdminController {
         LambdaQueryWrapper<User> userWrapper = new LambdaQueryWrapper<>();
         userWrapper.eq(User::getUsername, name);
         User user = userService.getOne(userWrapper);
+        if (user.getPermission() == 1) {
+            return Result.FAIL().message("禁止删除管理员");
+        }
         user.setIsDeleted(1);
         var isOK = userService.updateById(user);
         redisTemplate.delete(user.getUsername());
-        // redisTemplate.opsForValue().set(user.getUsername(), " ");
         return isOK ? Result.OK().message("删除成功") : Result.FAIL();
     }
 
@@ -138,7 +138,6 @@ public class AdminController {
 
         // 封装条件，判断条件值不为空
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        // LambdaQueryChainWrapper<User> wrapper = new LambdaQueryChainWrapper<>();
         wrapper.eq(User::getIsDeleted, 0);
         // 获取条件值
         String username = userQueryVo.getKeyword();
@@ -220,5 +219,32 @@ public class AdminController {
     public Result<?> tasks() {
         List<ContainerTask> tasks = taskService.list();
         return tasks != null || tasks.size() != 0 ? Result.OK(tasks) : Result.FAIL().message("未查询到任务");
+    }
+
+    @PreAuthorize("hasAuthority('admin')")
+    @DeleteMapping("removeContainer/{name}")
+    public Result<?> removeContainer(@PathVariable String name) {
+        try {
+            containerService.removeContainer(name);
+            LambdaQueryWrapper<Stu> stuWrapper = new LambdaQueryWrapper<>();
+            LambdaQueryWrapper<Container> containerWrapper = new LambdaQueryWrapper<>();
+            LambdaQueryWrapper<User> userWrapper = new LambdaQueryWrapper<>();
+            stuWrapper.eq(Stu::getName, name);
+            containerWrapper.eq(Container::getName, name);
+            userWrapper.eq(User::getUsername, name);
+
+            stuService.remove(stuWrapper);
+            containerService.remove(containerWrapper);
+            var user = userService.getOne(userWrapper);
+            user.setIsDeleted(1);
+            userService.updateById(user);
+
+            return Result.OK().message("操作成功");
+        } catch (DockerException ex) {
+            return Result.FAIL().message(CustomException.parseDockerExceptionMessage(ex));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return Result.FAIL().message("请查看日志");
+        }
     }
 }

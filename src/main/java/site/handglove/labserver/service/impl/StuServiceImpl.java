@@ -1,7 +1,7 @@
 package site.handglove.labserver.service.impl;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,14 +23,15 @@ public class StuServiceImpl extends ServiceImpl<StuMapper, Stu> implements StuSe
     private ContainerService containerService;
 
     @Override
-    public List<Container> getAllContainers() {
+    public List<Container> getAllContainers() throws Exception {
         LambdaQueryWrapper<Container> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.select(Container::getName);
         List<String> names = containerService.listObjs(queryWrapper, obj -> (String) obj);
         try {
-            List<Container> allContainers = names.stream().map(item -> {
-                return Helper.containerInfo(null, item);
-            }).collect(Collectors.toList());
+            List<Container> allContainers = new ArrayList<>();
+            for (String name : names) {
+                allContainers.add(Helper.containerInfo(null, name));
+            }
             return allContainers;
         } catch (DockerException ex) {
             throw ex;

@@ -1,2 +1,2 @@
 # LabServer
-## Useage
+## Usage

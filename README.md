@@ -1,2 +1,2 @@
 # LabServer
-## How to use
+## Usage one

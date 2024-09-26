@@ -1,2 +1,2 @@
 # LabServer
-## Usage
+## How to `use`

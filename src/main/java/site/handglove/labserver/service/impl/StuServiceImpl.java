@@ -3,6 +3,8 @@ package site.handglove.labserver.service.impl;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,10 @@ import site.handglove.labserver.utils.Helper;
 public class StuServiceImpl extends ServiceImpl<StuMapper, Stu> implements StuService {
     @Autowired
     private ContainerService containerService;
+
+    private final String TAG = "[StuServiceImpl]";
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Override
     public List<Container> getAllContainers() throws Exception {
@@ -45,9 +51,12 @@ public class StuServiceImpl extends ServiceImpl<StuMapper, Stu> implements StuSe
         List<Integer> stuIndexes = this.listObjs(queryWrapper, obj -> (Integer) obj);
         stuIndexes.sort((a, b) -> a - b);
 
-        int stuIndex = stuIndexes.get(stuIndexes.size() - 1) + 1;
-        if (stuIndex == 8) {
-            ++stuIndex;
+        int stuIndex = 1;
+        if (!stuIndexes.isEmpty()) {
+           stuIndex = stuIndexes.get(stuIndexes.size() - 1) + 1;
+           if (stuIndex == 8) {
+               ++stuIndex;
+           }
         }
         
         try {
@@ -63,6 +72,7 @@ public class StuServiceImpl extends ServiceImpl<StuMapper, Stu> implements StuSe
             throw ex;
         } catch (Exception ex) {
             ex.printStackTrace();
+            logger.error(TAG + "createContainer", ex);
         }
         return null;
     }

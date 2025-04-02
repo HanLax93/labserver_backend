@@ -1,7 +1,5 @@
 package site.handglove.labserver.model;
 
-import java.time.OffsetDateTime;
-
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -14,20 +12,17 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@TableName("container_task")
-public class ContainerTask {
+@TableName("thread_imgs")
+public class ThreadImg {
     @TableId(type = IdType.AUTO)
     private Integer id;
 
-    @TableField("name")
-    private String name;
+    @TableField("thread_id")
+    private Integer threadId;
 
-    @TableField("is_processed")
-    private int isProcessed;
+    @TableField("img_id")
+    private Integer imgId;
 
-    @TableField("create_time")
-    private OffsetDateTime createTime;
-
-    @TableField(value = "update_time", update = "now()")
-    private OffsetDateTime updateTime;
+    @TableField("type")
+    private Integer type;
 }

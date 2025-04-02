@@ -1,4 +1,4 @@
-package site.handglove.labserver.model;
+package site.handglove.labserver.model.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;

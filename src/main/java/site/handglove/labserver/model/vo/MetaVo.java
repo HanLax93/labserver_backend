@@ -1,4 +1,4 @@
-package site.handglove.labserver.model;
+package site.handglove.labserver.model.vo;
 
 import lombok.Data;
 
@@ -19,13 +19,16 @@ public class MetaVo
      */
     private String icon;
 
+    private Short keepAlive;
+
     public MetaVo()
     {
     }
 
-    public MetaVo(String title, String icon)
+    public MetaVo(String title, String icon, Short keepAlive)
     {
         this.title = title;
         this.icon = icon;
+        this.keepAlive = keepAlive;
     }
 }

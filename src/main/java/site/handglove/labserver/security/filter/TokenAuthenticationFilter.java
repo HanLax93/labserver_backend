@@ -59,10 +59,11 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter{
         if (StringUtils.hasLength(token)) {
             // 解析token
             String username = JWTHelper.getUsername(token);
+            Integer permissionCode = JWTHelper.getPermission(token);
             if (StringUtils.hasLength(username)) {
                 // 当前用户信息放到threadlocal里
                 LoginUserHelper.setUsername(username);
-
+                LoginUserHelper.setPermission(permissionCode);
                 // 通过username从redis中获取权限数据
                 String permission = (String) redisTemplate.opsForValue().get(username);
                 if (StringUtils.hasLength(permission)) {

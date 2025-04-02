@@ -7,23 +7,19 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
+@TableName("thread_version")
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-@TableName("container_task")
-public class ContainerTask {
+public class ThreadVersion {
     @TableId(type = IdType.AUTO)
     private Integer id;
 
-    @TableField("name")
-    private String name;
+    @TableField("thread_name")
+    private String threadName;
 
-    @TableField("is_processed")
-    private int isProcessed;
+    @TableField("version")
+    private Integer version;
 
     @TableField("create_time")
     private OffsetDateTime createTime;

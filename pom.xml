@@ -105,6 +105,13 @@
 			<version>0.1.55</version>  <!-- 使用最新版本 -->
 		</dependency>
 
+		<!-- jedis -->
+		<dependency>
+			<groupId>redis.clients</groupId>
+			<artifactId>jedis</artifactId>
+			<version>3.7.0</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

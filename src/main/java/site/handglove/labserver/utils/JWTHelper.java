@@ -10,10 +10,11 @@ public class JWTHelper {
     private static long tokenExpiration = 365 * 24 * 60 * 60 * 1000;
     private static SecretKey secretKey = Jwts.SIG.HS256.key().build();
 
-    public static String createToken(String username) {
+    public static String createToken(String username, Integer permission) {
         String token = Jwts.builder()
                 .expiration(new Date(System.currentTimeMillis() + tokenExpiration))
                 .subject(username)
+                .claim("permissionCode", permission)
                 .signWith(secretKey)
                 .compressWith(Jwts.ZIP.GZIP)
                 .compact();
@@ -31,13 +32,29 @@ public class JWTHelper {
             Claims claims = claimsJws.getPayload();
             return (String) claims.getSubject();
         } catch (Exception e) {
-            e.printStackTrace();
+            // e.printStackTrace();
             return null;
         }
     }
 
+    public static Integer getPermission(String token) {
+        try {
+            if (!StringUtils.hasLength(token))
+                return 0;
+
+            Jws<Claims> claimsJws = Jwts.parser()
+                    .verifyWith(secretKey).build()
+                    .parseSignedClaims(token);
+            Claims claims = claimsJws.getPayload();
+            return (Integer) claims.get("permissionCode");
+        } catch (Exception e) {
+            // e.printStackTrace();
+            return 0;
+        }
+    }
+
     public static void main(String[] args) {
-        String token = JWTHelper.createToken("wangjingli");
+        String token = JWTHelper.createToken("wangjingli", 0);
         System.out.println(token);
         System.out.println(JWTHelper.getUsername(token));
     }

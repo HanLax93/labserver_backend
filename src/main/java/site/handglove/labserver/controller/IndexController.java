@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import jakarta.servlet.http.HttpServletRequest;
-import site.handglove.labserver.model.LoginVo;
-import site.handglove.labserver.model.RouterVo;
 import site.handglove.labserver.model.User;
+import site.handglove.labserver.model.vo.LoginVo;
+import site.handglove.labserver.model.vo.RouterVo;
 import site.handglove.labserver.result.Result;
 import site.handglove.labserver.security.custom.LoginUserHelper;
 import site.handglove.labserver.service.UserMenuService;
@@ -61,6 +61,7 @@ public class IndexController {
         map.put("name", username);
         map.put("routers", routerList);
         map.put("buttons", buttonList);
+        map.put("permission", user.getPermission());
 
         return Result.OK(map);
     }

@@ -5,7 +5,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ShellCommandRunner {
+
+    private final static String TAG = "[ShellCommandRunner]";
+
+    private final static Logger logger = LoggerFactory.getLogger(ShellCommandRunner.class);
+
     public static ArrayList<String> run(String command) {
         ArrayList<String> commandRes = new ArrayList<>();
         try {
@@ -28,6 +36,7 @@ public class ShellCommandRunner {
                 System.out.println("\n---------------------------\n");
             }
         } catch (IOException | InterruptedException e) {
+            logger.error(TAG + "run", e);
             e.printStackTrace();
         }
         return commandRes;

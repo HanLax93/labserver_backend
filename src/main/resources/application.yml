@@ -4,12 +4,19 @@ mybatis-plus:
       id-type: auto
 
 spring:
+  main:
+    allow-circular-references: true
   application:
     name: labserver
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+      location: /home/zjy/Workspace/labserver/frontend/resources/imgs
+
   datasource:
-    url: jdbc:mysql://localhost:3306/labserver?useSSL=false
+    url: jdbc:mysql://localhost:3306/labserver?useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: wxl2080ti
     driver-class-name: com.mysql.cj.jdbc.Driver
 
     jackson:
@@ -20,7 +27,6 @@ spring:
     redis:
       host: 127.0.0.1
       port: 6379
-      password: wxl2080ti
       timeout: 10000
       lettuce:
         pool:
@@ -32,4 +38,5 @@ spring:
 server:
   port: 8403
 
-dockerRoot: "/home/server-admin/workspace/docker-compose/wxl2080Ti/"
+dockerRoot: "/home/zjy/Workspace/labserver/"
+resourcesPath: "/home/zjy/Workspace/labserver/frontend/resources/"

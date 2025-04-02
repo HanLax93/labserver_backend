@@ -1,5 +1,6 @@
 package site.handglove.labserver.model;
 
+import java.io.Serializable;
 import java.time.OffsetDateTime;
 
 import com.baomidou.mybatisplus.annotation.IdType;
@@ -14,20 +15,19 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@TableName("container_task")
-public class ContainerTask {
+@TableName("imgs")
+public class Img implements Serializable {
+	private static final long serialVersionUID = 1L;
+
     @TableId(type = IdType.AUTO)
     private Integer id;
 
-    @TableField("name")
-    private String name;
+    @TableField("author")
+    private String author;
 
-    @TableField("is_processed")
-    private int isProcessed;
+    @TableField("filename")
+    private String filename;
 
-    @TableField("create_time")
-    private OffsetDateTime createTime;
-
-    @TableField(value = "update_time", update = "now()")
-    private OffsetDateTime updateTime;
+    @TableField("upload_time")
+    private OffsetDateTime uploadTime;
 }

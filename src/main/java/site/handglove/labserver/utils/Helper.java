@@ -1,14 +1,19 @@
 package site.handglove.labserver.utils;
 
 import java.io.FileInputStream;
+import java.text.SimpleDateFormat;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
@@ -23,6 +28,7 @@ import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.model.Bind;
+import com.github.dockerjava.api.model.DeviceRequest;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
@@ -39,12 +45,16 @@ import com.github.dockerjava.transport.DockerHttpClient;
 import site.handglove.labserver.exception.CustomException;
 import site.handglove.labserver.model.Container;
 import site.handglove.labserver.model.Menu;
-import site.handglove.labserver.model.MetaVo;
-import site.handglove.labserver.model.RouterVo;
+import site.handglove.labserver.model.vo.MetaVo;
+import site.handglove.labserver.model.vo.RouterVo;
 
 @Repository
 public class Helper {
     private static String dockerRoot;
+
+    private final static String TAG = "[Helper]";
+
+    private final static Logger logger = LoggerFactory.getLogger(Helper.class);
 
     @Value("${dockerRoot}")
     public void setDockerRoot(String dockerRoot) {
@@ -66,7 +76,7 @@ public class Helper {
 
     public static DockerClient getDockerClient() {
         DockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder()
-                .withDockerHost("unix://var/run/docker.sock")
+                .withDockerHost("tcp://localhost:23750")
                 .build();
         DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
                 .dockerHost(config.getDockerHost())
@@ -121,15 +131,6 @@ public class Helper {
 
     public static boolean createContainer(String name, Integer stuIndex) throws Exception {
         DockerClient dockerClient = getDockerClient();
-        // make folders and unzip apt dependencies
-        String stuPath = dockerRoot + "stus/data/stu" + stuIndex;
-        String confPath = stuPath + "/conf";
-        String aptPath = confPath + "/apt";
-        String envsPath = stuPath + "/envs";
-        String workspacePath = stuPath + "/workspace";
-        String scriptsPath = dockerRoot + "/scripts/apt.tar.gz";
-
-        ShellCommandRunner.run("mkdir -p " + aptPath + " " + envsPath + " " + workspacePath);
 
         List<Integer> containerPorts = new ArrayList<Integer>() {
             {
@@ -157,24 +158,34 @@ public class Helper {
             binding.bind(exposedPorts.get(i), bindingPorts.get(i));
         }
 
-        String dataRoot = "/home/server-admin/workspace/docker-compose/wxl2080Ti/stus/data/stu";
-        String[] containerVolumes = { "/home/stu/workspace", "/home/stu/.conda/envs", "/etc/apt" };
+        String userhome = "/home/" + name;
+        String dataRoot = "/home/zjy/Workspace/labserver/stus/data/" + name;
+        String[] containerVolumes = { userhome + "/workspace", userhome + "/.conda/envs", "/etc/apt" };
         String[] baseVolumes = { "/workspace", "/envs", "/conf/apt" };
         HostConfig hostConfig = new HostConfig();
         Bind[] binds = new Bind[baseVolumes.length];
         for (int i = 0; i < baseVolumes.length; ++i) {
-            binds[i] = new Bind(dataRoot + stuIndex + baseVolumes[i], new Volume(containerVolumes[i]));
+            binds[i] = new Bind(dataRoot + baseVolumes[i], new Volume(containerVolumes[i]));
         }
+
+        // 配置 gpu 设备请求
+        DeviceRequest gpuRequest = new DeviceRequest()
+            .withDriver("nvidia")
+            .withCapabilities(Collections.singletonList(List.of(new String[]{"gpu", "utility", "compute"})))
+            .withCount(-1);
 
         hostConfig.withPortBindings(binding)
                 .withPrivileged(true)
                 .withShmSize(34359738368L)
                 .withRestartPolicy(RestartPolicy.alwaysRestart())
+                .withDeviceRequests(Collections.singletonList(gpuRequest))
                 .withBinds(binds);
         String containerId = "";
+        String uid = "100" + stuIndex;
 
         try {
-            CreateContainerResponse createContainerResponse = dockerClient.createContainerCmd("wxl2080ti:0.1.0")
+            logger.info(TAG + "start to createContrainer, time is " + getTime());
+            CreateContainerResponse createContainerResponse = dockerClient.createContainerCmd("labserver:0.0.1")
                     .withHostName(name)
                     .withName(name)
                     .withHostConfig(hostConfig)
@@ -184,23 +195,24 @@ public class Helper {
                     .withStdinOpen(true)
                     .withTty(true)
                     .exec();
+            logger.info(TAG + "createContainer success, time is " + getTime());
             containerId = createContainerResponse.getId();
             dockerClient.startContainerCmd(createContainerResponse.getId()).exec();
-            ShellCommandRunner.run("tar xzf " + scriptsPath + " -C " + aptPath + " --strip-components 1");
-            ShellCommandRunner.run("sudo docker exec -uroot " + name + " chown -R stu:sudo /home/stu");
-            runContainerSSH(name, dockerClient);
+            ShellCommandRunner.run("sudo docker exec -uroot " + name + " sudo sh /tmp/dependencies/init4user.sh " + name + " " + uid);
             dockerClient.close();
             return true;
         } catch (Exception e) {
+            if (e instanceof CustomException || e instanceof DockerException) {
+                logger.error(TAG + "createContrainer" + e.getMessage());
+            }
+            logger.error(TAG + "createContainer", e.getMessage());
+            e.printStackTrace();
             try {
                 dockerClient.removeContainerCmd(containerId).exec();
             } catch (Exception ex) {
+                logger.error(TAG + "removeContainerCmd", ex);
                 ex.printStackTrace();
             }
-            if (e instanceof CustomException || e instanceof DockerException) {
-                throw e;
-            }
-            e.printStackTrace();
         }
         dockerClient.close();
         return false;
@@ -292,7 +304,8 @@ public class Helper {
             dockerClient.startContainerCmd(name).exec();
             InspectContainerResponse containerResponse = dockerClient.inspectContainerCmd(name).exec();
             boolean isRunning = containerResponse.getState().getRunning();
-            if (ownDockerClient) dockerClient.close();
+            if (ownDockerClient)
+                dockerClient.close();
             return isRunning;
         } catch (DockerException e) {
             throw e;
@@ -330,7 +343,8 @@ public class Helper {
 
             // 检查输出中是否包含'sshd'，以此判断SSH服务是否在运行
             boolean isSshRunning = !output.toString().contains("not");
-            if (ownDockerClient) dockerClient.close();
+            if (ownDockerClient)
+                dockerClient.close();
             return isSshRunning;
         } catch (DockerException ex) {
             throw ex;
@@ -358,7 +372,7 @@ public class Helper {
                         }
                     }).awaitCompletion();
 
-            // 检查输出中是否包含'sshd'，以此判断SSH服务是否在运行
+            // 检查输出中是否包含'not'，以此判断SSH服务是否在运行
             boolean isSshRunning = !output.toString().contains("not");
             dockerClient.close();
             return isSshRunning;
@@ -374,7 +388,7 @@ public class Helper {
             dockerClient.stopContainerCmd(name).exec();
             dockerClient.removeContainerCmd(name).exec();
             dockerClient.close();
-            ShellCommandRunner.run("mv " + dataRoot + " " + dataRoot  + "_" + name + ".del");
+            ShellCommandRunner.run("mv " + dataRoot + " " + dataRoot + "_" + name + ".del");
         } catch (DockerException ex) {
             throw ex;
         }
@@ -435,7 +449,7 @@ public class Helper {
             routerVo.setAlwaysShow(false);
             routerVo.setPath(getRouterPath(menu));
             routerVo.setComponent(menu.getComponent());
-            routerVo.setMeta(new MetaVo(menu.getName(), menu.getIcon()));
+            routerVo.setMeta(new MetaVo(menu.getName(), menu.getIcon(), menu.getKeepAlive()));
             List<Menu> children = menu.getChildren();
             if (menu.getType().longValue() == 1) {
                 List<Menu> hiddenMenuList = children.stream().filter(item -> !StringUtils.isEmpty(item.getComponent()))
@@ -446,7 +460,7 @@ public class Helper {
                     hiddenRouterVo.setAlwaysShow(false);
                     hiddenRouterVo.setPath(getRouterPath(hiddenMenu));
                     hiddenRouterVo.setComponent(hiddenMenu.getComponent());
-                    hiddenRouterVo.setMeta(new MetaVo(hiddenMenu.getName(), hiddenMenu.getIcon()));
+                    hiddenRouterVo.setMeta(new MetaVo(hiddenMenu.getName(), hiddenMenu.getIcon(), menu.getKeepAlive()));
                     res.add(hiddenRouterVo);
                 }
             } else {
@@ -517,5 +531,11 @@ public class Helper {
 
         sb.setCharAt(sb.length() - 1, ']');
         return sb.toString();
+    }
+
+    private static String getTime() {
+        SimpleDateFormat formatter= new SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss z");
+        Date date = new Date(System.currentTimeMillis());
+        return formatter.format(date);
     }
 }

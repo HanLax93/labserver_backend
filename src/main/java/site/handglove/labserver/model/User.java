@@ -40,7 +40,7 @@ public class User {
     @TableField("created_at")
     private OffsetDateTime createdAt;
 
-    @TableField("updated_at")
+    @TableField(value = "updated_at", update = "now()")
     private OffsetDateTime updatedAt;
 
     public User(String username, String passwordHash, String name, Integer entryYear) {

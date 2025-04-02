@@ -30,6 +30,9 @@ public class Menu {
 	@TableField("component")
 	private String component;
 
+	@TableField("keep_alive")
+	private Short keepAlive;
+
 	@TableField("auth")
 	private String perms;
 

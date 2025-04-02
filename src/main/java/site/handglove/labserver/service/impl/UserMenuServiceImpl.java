@@ -11,9 +11,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import site.handglove.labserver.mapper.UserMenuMapper;
 import site.handglove.labserver.model.Menu;
-import site.handglove.labserver.model.RouterVo;
 import site.handglove.labserver.model.User;
 import site.handglove.labserver.model.UserMenu;
+import site.handglove.labserver.model.vo.RouterVo;
 import site.handglove.labserver.service.MenuService;
 import site.handglove.labserver.service.UserMenuService;
 import site.handglove.labserver.service.UserService;

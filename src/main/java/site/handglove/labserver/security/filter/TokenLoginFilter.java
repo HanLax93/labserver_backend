@@ -19,7 +19,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import site.handglove.labserver.model.LoginVo;
+import site.handglove.labserver.model.vo.LoginVo;
 import site.handglove.labserver.result.Result;
 import site.handglove.labserver.utils.JWTHelper;
 import site.handglove.labserver.utils.ResponseUtil;
@@ -57,9 +57,9 @@ public class TokenLoginFilter extends UsernamePasswordAuthenticationFilter {
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
             Authentication authResult) throws IOException, ServletException {
         // 获取当前用户
-        CustomUser customUser = (CustomUser)authResult.getPrincipal();
+        CustomUser customUser = (CustomUser) authResult.getPrincipal();
         // 生成token
-        String token = JWTHelper.createToken(customUser.getUser().getUsername());
+        String token = JWTHelper.createToken(customUser.getUser().getUsername(), customUser.getUser().getPermission());
         redisTemplate.opsForValue().set(customUser.getUser().getUsername(), JSON.toJSONString(customUser.getAuthorities()));
         // 将token返回给前端
         Map<String, Object> map = new HashMap<>();
